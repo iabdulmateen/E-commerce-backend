@@ -37,6 +37,26 @@ const protect = async (req, res, next) => {
   }
 };
 
+const optionalProtect = async (req, res, next) => {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_ecommerce_jwt_secret');
+      if (User.db && User.db.readyState === 1) {
+        req.user = await User.findById(decoded.id).select('-password');
+      } else {
+        req.user = { _id: decoded.id, role: 'customer' };
+      }
+    } catch {
+      // Ignore invalid token for optional auth
+    }
+  }
+  next();
+};
+
 const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     return next();
@@ -44,4 +64,5 @@ const admin = (req, res, next) => {
   return res.status(403).json({ error: 'Not authorized as an admin' });
 };
 
-module.exports = { generateToken, protect, admin };
+module.exports = { generateToken, protect, optionalProtect, admin };
+

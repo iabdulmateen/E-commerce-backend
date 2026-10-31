@@ -36,10 +36,28 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 4.5,
     },
+    oldPrice: {
+      type: Number,
+    },
+    discount: {
+      type: Number,
+    },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// Virtual for 'image' so both product.image and product.imageUrl work
+productSchema.virtual('image').get(function () {
+  return this.imageUrl;
+});
+
+// Virtual for 'id' string so both product.id and product._id work
+productSchema.virtual('id').get(function () {
+  return this._id.toHexString();
+});
 
 module.exports = mongoose.model('Product', productSchema);

@@ -17,7 +17,12 @@ const orderSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
+    },
+    customerInfo: {
+      name: { type: String, default: 'Guest Customer' },
+      email: { type: String, default: '' },
+      phone: { type: String, default: '' },
     },
     orderItems: [orderItemSchema],
     shippingAddress: {

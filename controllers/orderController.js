@@ -7,7 +7,7 @@ const inMemoryOrders = [];
 // @access  Private
 const createOrder = async (req, res, next) => {
   try {
-    const { orderItems, shippingAddress, paymentMethod, totalPrice } = req.body;
+    const { orderItems, shippingAddress, paymentMethod, totalPrice, customerInfo } = req.body;
 
     if (!orderItems || orderItems.length === 0) {
       return res.status(400).json({ error: 'No order items in cart' });
@@ -17,9 +17,12 @@ const createOrder = async (req, res, next) => {
       return res.status(400).json({ error: 'Please provide full shipping address' });
     }
 
+    const userId = req.user ? req.user._id : null;
+
     if (Order.db && Order.db.readyState === 1) {
       const order = await Order.create({
-        user: req.user._id,
+        user: userId,
+        customerInfo: customerInfo || { name: req.user?.name || 'Guest Customer' },
         orderItems,
         shippingAddress,
         paymentMethod: paymentMethod || 'Cash on Delivery',
@@ -30,7 +33,8 @@ const createOrder = async (req, res, next) => {
 
     const mockOrder = {
       _id: 'order_' + Date.now(),
-      user: req.user._id,
+      user: userId,
+      customerInfo: customerInfo || { name: req.user?.name || 'Guest Customer' },
       orderItems,
       shippingAddress,
       paymentMethod: paymentMethod || 'Cash on Delivery',
