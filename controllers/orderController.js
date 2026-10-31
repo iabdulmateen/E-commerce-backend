@@ -4,7 +4,7 @@ const inMemoryOrders = [];
 
 // @desc    Create new order
 // @route   POST /api/orders
-// @access  Private
+// @access  Public / Guest & Authenticated
 const createOrder = async (req, res, next) => {
   try {
     const { orderItems, shippingAddress, paymentMethod, totalPrice, customerInfo } = req.body;
@@ -19,11 +19,20 @@ const createOrder = async (req, res, next) => {
 
     const userId = req.user ? req.user._id : null;
 
+    // Har product ID ko accept karein (number 5 ya MongoDB ObjectId)
+    const cleanedOrderItems = orderItems.map((item) => ({
+      name: item.name,
+      qty: Number(item.qty) || Number(item.quantity) || 1,
+      price: Number(item.price) || 0,
+      imageUrl: item.imageUrl || item.image || '',
+      product: item.product || item._id || item.id || 'custom_product',
+    }));
+
     if (Order.db && Order.db.readyState === 1) {
       const order = await Order.create({
         user: userId,
         customerInfo: customerInfo || { name: req.user?.name || 'Guest Customer' },
-        orderItems,
+        orderItems: cleanedOrderItems,
         shippingAddress,
         paymentMethod: paymentMethod || 'Cash on Delivery',
         totalPrice: Number(totalPrice) || 0,
@@ -35,7 +44,7 @@ const createOrder = async (req, res, next) => {
       _id: 'order_' + Date.now(),
       user: userId,
       customerInfo: customerInfo || { name: req.user?.name || 'Guest Customer' },
-      orderItems,
+      orderItems: cleanedOrderItems,
       shippingAddress,
       paymentMethod: paymentMethod || 'Cash on Delivery',
       totalPrice: Number(totalPrice) || 0,
@@ -107,13 +116,7 @@ const getAllOrders = async (req, res, next) => {
     next(error);
   }
 };
-const cleanedOrderItems = orderItems.map((item) => ({
-      name: item.name,
-      qty: Number(item.qty) || Number(item.quantity) || 1,
-      price: Number(item.price) || 0,
-      imageUrl: item.imageUrl || item.image || '',
-      product: item.product || item._id || item.id || 'custom_product',
-    }));
+
 module.exports = {
   createOrder,
   getMyOrders,
