@@ -3,34 +3,79 @@ const cors = require('cors');
 require('dotenv').config();
 const connectDB = require('./config/db');
 
+// Import Route handlers
+const userRoutes = require('./routes/userRoutes');
+const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+
 const app = express();
 
 // CORS Middleware
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 
+// Body Parser Middleware
 app.use(express.json());
 
 // Database Connection
 connectDB();
 
-// Test Route
+// API Root Overview Route
 app.get('/', (req, res) => {
-  res.json({ message: 'API is running successfully...' });
+  res.json({
+    status: 'online',
+    message: 'E-commerce REST API is running successfully',
+    database: process.env.MONGO_URI ? 'MongoDB Atlas (Configured)' : 'In-Memory / Offline Fallback Active',
+    endpoints: {
+      auth: {
+        register: 'POST /api/users/register',
+        login: 'POST /api/users/login',
+        profile: 'GET /api/users/profile (Bearer Token)',
+      },
+      products: {
+        getAll: 'GET /api/products',
+        getById: 'GET /api/products/:id',
+        create: 'POST /api/products (Admin)',
+        update: 'PUT /api/products/:id (Admin)',
+        delete: 'DELETE /api/products/:id (Admin)',
+      },
+      orders: {
+        create: 'POST /api/orders (Protected)',
+        myOrders: 'GET /api/orders/myorders (Protected)',
+        getById: 'GET /api/orders/:id (Protected)',
+      },
+    },
+  });
 });
 
-// Database offline fallback error middleware
+// Mount API Routes
+app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+
+// Database offline & general error fallback middleware
 app.use((err, req, res, next) => {
-  if (err.name === 'MongooseError' || err.name === 'MongoNetworkError' || (err.message && err.message.includes('buffering timed out'))) {
-    console.warn('[AI Studio] Database offline — returning fallback response');
+  console.error('[API Error]:', err.message);
+
+  if (
+    err.name === 'MongooseError' ||
+    err.name === 'MongoNetworkError' ||
+    (err.message && err.message.includes('buffering timed out'))
+  ) {
     if (req.method === 'GET') {
       return res.json(req.path.endsWith('s') || req.path.endsWith('s/') ? [] : {});
     }
-    return res.status(503).json({ error: 'Service temporarily unavailable (database offline)' });
+    return res.status(503).json({ error: 'Database service offline. Please verify Atlas connection.' });
   }
-  next(err);
+
+  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  return res.status(statusCode).json({
+    error: err.message || 'Internal Server Error',
+  });
 });
 
 const PORT = process.env.PORT || 3000;
