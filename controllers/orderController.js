@@ -107,7 +107,13 @@ const getAllOrders = async (req, res, next) => {
     next(error);
   }
 };
-
+const cleanedOrderItems = orderItems.map((item) => ({
+      name: item.name,
+      qty: Number(item.qty) || Number(item.quantity) || 1,
+      price: Number(item.price) || 0,
+      imageUrl: item.imageUrl || item.image || '',
+      product: item.product || item._id || item.id || 'custom_product',
+    }));
 module.exports = {
   createOrder,
   getMyOrders,

@@ -6,12 +6,11 @@ const orderItemSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   imageUrl: { type: String },
   product: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.Mixed, // <-- Number aur ObjectId dono accept karega
     ref: 'Product',
-    required: true,
+    required: false,
   },
 });
-
 const orderSchema = new mongoose.Schema(
   {
     user: {
