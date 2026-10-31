@@ -1,0 +1,7 @@
+{
+  "name": "E-Commerce Backend",
+  "description": "E-commerce backend REST API built with Express, Mongoose, and Node.js.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
