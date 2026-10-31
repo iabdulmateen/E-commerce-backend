@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "dev": "nodemon index.js",
-  "start": "node index.js",
-  "build": "echo 'Build complete'",
-  "test": "echo \"Error: no test specified\" && exit 1"
-},
+    "dev": "node index.js",
+    "start": "node index.js",
+    "build": "echo 'Build complete'",
+    "lint": "node --check index.js config/db.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

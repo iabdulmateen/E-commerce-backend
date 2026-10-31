@@ -5,6 +5,7 @@ const connectDB = require('./config/db');
 
 const app = express();
 
+// CORS Middleware
 app.use(cors({
   origin: true,
   credentials: true
@@ -12,7 +13,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Database Connect
+// Database Connection
 connectDB();
 
 // Test Route
@@ -20,21 +21,19 @@ app.get('/', (req, res) => {
   res.json({ message: 'API is running successfully...' });
 });
 
-// Yahan apne routes link karein (e.g. app.use('/api/products', require('./routs/productRoute'))
-
-// Database offline fallback error handler
+// Database offline fallback error middleware
 app.use((err, req, res, next) => {
   if (err.name === 'MongooseError' || err.name === 'MongoNetworkError' || (err.message && err.message.includes('buffering timed out'))) {
-    console.warn('Database offline — returning fallback');
+    console.warn('[AI Studio] Database offline — returning fallback response');
     if (req.method === 'GET') {
       return res.json(req.path.endsWith('s') || req.path.endsWith('s/') ? [] : {});
     }
-    return res.status(503).json({ error: 'Database service offline' });
+    return res.status(503).json({ error: 'Service temporarily unavailable (database offline)' });
   }
   next(err);
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on http://0.0.0.0:${PORT}`);
 });
