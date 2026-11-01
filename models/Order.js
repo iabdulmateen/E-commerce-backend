@@ -6,8 +6,7 @@ const orderItemSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   imageUrl: { type: String },
   product: {
-    type: mongoose.Schema.Types.Mixed, // <-- Yeh number (9) aur ObjectId dono accept karega
-    ref: 'Product',
+    type: mongoose.Schema.Types.Mixed, // <-- Yeh number (5, 9) aur ObjectId dono accept karega!
     required: false,
   },
 });
