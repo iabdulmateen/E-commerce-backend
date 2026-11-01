@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 
 const inMemoryOrders = [];
@@ -19,14 +20,20 @@ const createOrder = async (req, res, next) => {
 
     const userId = req.user ? req.user._id : null;
 
-    // Har product ID ko accept karein (number 5 ya MongoDB ObjectId)
-    const cleanedOrderItems = orderItems.map((item) => ({
-      name: item.name,
-      qty: Number(item.qty) || Number(item.quantity) || 1,
-      price: Number(item.price) || 0,
-      imageUrl: item.imageUrl || item.image || '',
-      product: item.product || item._id || item.id || 'custom_product',
-    }));
+    // Har product ID ko safe ObjectId me convert karein taake CastError na aaye
+    const cleanedOrderItems = orderItems.map((item) => {
+      const rawId = item.product || item._id || item.id;
+      const isValidMongoId = mongoose.Types.ObjectId.isValid(rawId) && String(rawId).length === 24;
+      const validObjectId = isValidMongoId ? rawId : new mongoose.Types.ObjectId();
+
+      return {
+        name: item.name,
+        qty: Number(item.qty) || Number(item.quantity) || 1,
+        price: Number(item.price) || 0,
+        imageUrl: item.imageUrl || item.image || '',
+        product: validObjectId,
+      };
+    });
 
     if (Order.db && Order.db.readyState === 1) {
       const order = await Order.create({

@@ -6,17 +6,18 @@ const orderItemSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   imageUrl: { type: String },
   product: {
-    type: mongoose.Schema.Types.Mixed, // <-- Number aur ObjectId dono accept karega
+    type: mongoose.Schema.Types.Mixed, // <-- Yeh number (9) aur ObjectId dono accept karega
     ref: 'Product',
     required: false,
   },
 });
+
 const orderSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: false,
+      required: false, // Guest checkout support
     },
     customerInfo: {
       name: { type: String, default: 'Guest Customer' },
