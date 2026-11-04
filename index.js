@@ -14,12 +14,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3003',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:3003'
-    ],
+    origin: true,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -106,7 +101,8 @@ app.use((err, req, res, next) => {
     error: err.message || 'Internal Server Error',
   });
 });
-const PORT = 4000
+const PORT = process.env.PORT || 4000;
+
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
