@@ -1,7 +1,17 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+// Fix Windows DNS queryTxt ETIMEOUT issue for mongodb+srv://
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']); // 👈 Google & Cloudflare Public DNS
+  if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+} catch (err) {
+  console.warn('DNS server configuration warning:', err.message);
+}
 
 const connectDB = async () => {
-  // Fail fast if database is offline rather than buffering operations indefinitely
   mongoose.set('bufferCommands', false);
 
   const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
@@ -11,7 +21,7 @@ const connectDB = async () => {
   }
 
   try {
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 3000 });
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
     console.log('MongoDB Connected Successfully...');
   } catch (error) {
     console.log(`MongoDB connection notice: ${error.message}. Running in offline fallback mode.`);

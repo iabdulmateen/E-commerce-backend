@@ -2,14 +2,38 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const connectDB = require('./config/db');
-
+const http = require('http');
+const { Server } = require('socket.io');
 // Import Route handlers
 const userRoutes = require('./routes/userRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 
 const app = express();
+const server = http.createServer(app);
 
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  socket.on('join-admin', () => {
+    socket.join('admin-room');
+    console.log('Admin joined admin-room');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
 // CORS Middleware
 app.use(
   cors({
@@ -77,8 +101,7 @@ app.use((err, req, res, next) => {
     error: err.message || 'Internal Server Error',
   });
 });
-
-const PORT = 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on http://0.0.0.0:${PORT}`);
+const PORT = 4000
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
 });

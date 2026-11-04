@@ -20,7 +20,6 @@ const createOrder = async (req, res, next) => {
 
     const userId = req.user ? req.user._id : null;
 
-    // Har product ID ko safe ObjectId me convert karein taake CastError na aaye
     const cleanedOrderItems = orderItems.map((item) => {
       const rawId = item.product || item._id || item.id;
       const isValidMongoId = mongoose.Types.ObjectId.isValid(rawId) && String(rawId).length === 24;
@@ -34,17 +33,41 @@ const createOrder = async (req, res, next) => {
         product: validObjectId,
       };
     });
-
     if (Order.db && Order.db.readyState === 1) {
-      const order = await Order.create({
-        user: userId,
-        customerInfo: customerInfo || { name: req.user?.name || 'Guest Customer' },
-        orderItems: cleanedOrderItems,
-        shippingAddress,
-        paymentMethod: paymentMethod || 'Cash on Delivery',
-        totalPrice: Number(totalPrice) || 0,
-      });
-      return res.status(201).json(order);
+     
+const order = await Order.create({
+  user: userId,
+  customerInfo: customerInfo || { name: req.user?.name || 'Guest Customer' },
+  orderItems: cleanedOrderItems,
+  shippingAddress,
+  paymentMethod: paymentMethod || 'Cash on Delivery',
+  totalPrice: Number(totalPrice) || 0,
+});
+
+// Send real-time notification to Admin Panel
+const io = req.app.get('io');
+
+console.log('ORDER SAVED:', order._id);
+console.log('SOCKET INSTANCE AVAILABLE:', !!io);
+
+if (io) {
+  try {
+    console.log(
+      'ADMIN ROOM CLIENTS:',
+      io.sockets.adapter.rooms.get('admin-room')?.size || 0
+    );
+
+    io.to('admin-room').emit('new-order', order);
+
+    console.log('NEW ORDER EMITTED TO ADMIN:', order._id);
+  } catch (socketError) {
+    console.error('SOCKET EMIT ERROR:', socketError);
+  }
+}else {
+  console.log('ERROR: Socket.IO instance not found!');
+}
+return res.status(201).json(order);
+
     }
 
     const mockOrder = {
