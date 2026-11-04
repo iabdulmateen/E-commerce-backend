@@ -1,226 +1,237 @@
+
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 
-// Sample initial products for fallback or offline browsing
-let inMemoryProducts = [
-  {
-    _id: 'prod_1',
-    name: 'Wireless Noise-Cancelling Headphones',
-    description: 'Premium wireless over-ear headphones with active noise cancellation and 30-hour battery life.',
-    price: 199.99,
-    category: 'Electronics',
-    stock: 25,
-    imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
-    rating: 4.8,
-    createdAt: new Date(),
-  },
-  {
-    _id: 'prod_2',
-    name: 'Minimalist Mechanical Keyboard',
-    description: 'Compact mechanical keyboard with hot-swappable switches and custom RGB backlighting.',
-    price: 89.99,
-    category: 'Electronics',
-    stock: 40,
-    imageUrl: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80',
-    rating: 4.6,
-    createdAt: new Date(),
-  },
-  {
-    _id: 'prod_3',
-    name: 'Ergonomic Desk Chair',
-    description: 'Breathable mesh ergonomic office chair with adjustable lumbar support and 3D armrests.',
-    price: 249.00,
-    category: 'Furniture',
-    stock: 12,
-    imageUrl: 'https://images.unsplash.com/photo-1580481077194-54c30c8052cf?w=600&auto=format&fit=crop&q=80',
-    rating: 4.7,
-    createdAt: new Date(),
-  },
-];
+// Check database connection
+const checkDatabase = (res) => {
+  if (!Product.db || Product.db.readyState !== 1) {
+    res.status(503).json({
+      error: 'Database service unavailable. Please try again later.'
+    });
+    return false;
+  }
 
-// @desc    Fetch all products (with optional keyword and category filter)
-// @route   GET /api/products
-// @access  Public
+  return true;
+};
+
+// Validate MongoDB ObjectId
+const isValidId = (id) => {
+  return mongoose.Types.ObjectId.isValid(id) &&
+    String(new mongoose.Types.ObjectId(id)) === id;
+};
+
+// Validate numeric fields
+const isValidNumber = (value, min = 0) => {
+  return value !== undefined &&
+    value !== null &&
+    value !== '' &&
+    Number.isFinite(Number(value)) &&
+    Number(value) >= min;
+};
+
+// @desc Fetch all products
+// @route GET /api/products
+// @access Public
 const getProducts = async (req, res, next) => {
   try {
+    if (!checkDatabase(res)) return;
+
     const { keyword, category } = req.query;
 
-    // MongoDB Connected
-    if (Product.db && Product.db.readyState === 1) {
-      let filter = {};
-      if (keyword) {
-        filter.name = { $regex: keyword, $options: 'i' };
-      }
-      if (category) {
-        filter.category = category;
-      }
+    const filter = {};
 
-      const products = await Product.find(filter).sort({ createdAt: -1 });
-
-      // If database is empty, seed initial sample products
-      if (products.length === 0 && Object.keys(filter).length === 0) {
-        const seeded = await Product.insertMany(
-          inMemoryProducts.map(({ _id, ...p }) => p)
-        );
-        return res.json(seeded);
-      }
-
-      return res.json(products);
-    }
-
-    // Fallback in-memory
-    let filtered = [...inMemoryProducts];
     if (keyword) {
-      filtered = filtered.filter((p) =>
-        p.name.toLowerCase().includes(keyword.toLowerCase())
-      );
+      filter.name = {
+        $regex: String(keyword),
+        $options: 'i'
+      };
     }
+
     if (category) {
-      filtered = filtered.filter(
-        (p) => p.category.toLowerCase() === category.toLowerCase()
-      );
+      filter.category = String(category);
     }
-    return res.json(filtered);
+
+    const products = await Product.find(filter)
+      .sort({ createdAt: -1 });
+
+    return res.json(products);
+
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Fetch single product by ID
-// @route   GET /api/products/:id
-// @access  Public
+// @desc Fetch single product
+// @route GET /api/products/:id
+// @access Public
 const getProductById = async (req, res, next) => {
   try {
+    if (!checkDatabase(res)) return;
+
     const { id } = req.params;
 
-    if (Product.db && Product.db.readyState === 1) {
-      const product = await Product.findById(id);
-      if (product) {
-        return res.json(product);
-      }
-      return res.status(404).json({ error: 'Product not found' });
+    if (!isValidId(id)) {
+      return res.status(400).json({
+        error: 'Invalid product ID'
+      });
     }
 
-    const item = inMemoryProducts.find((p) => p._id === id);
-    if (item) {
-      return res.json(item);
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
     }
-    return res.status(404).json({ error: 'Product not found' });
+
+    return res.json(product);
+
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Create a product
-// @route   POST /api/products
-// @access  Private/Admin
+// @desc Create product
+// @route POST /api/products
+// @access Private/Admin
 const createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, category, stock, imageUrl } = req.body;
+    if (!checkDatabase(res)) return;
 
-    if (!name || !description || price === undefined || !category) {
-      return res.status(400).json({
-        error: 'Please provide name, description, price, and category',
-      });
-    }
-
-    if (Product.db && Product.db.readyState === 1) {
-      const product = await Product.create({
-        name,
-        description,
-        price: Number(price),
-        category,
-        stock: stock !== undefined ? Number(stock) : 0,
-        imageUrl: imageUrl || 'https://placehold.co/600x400?text=Product+Image',
-      });
-      return res.status(201).json(product);
-    }
-
-    const newProduct = {
-      _id: 'prod_' + Date.now(),
+    const {
       name,
       description,
-      price: Number(price),
+      price,
       category,
+      stock,
+      imageUrl
+    } = req.body;
+
+    if (
+      typeof name !== 'string' ||
+      !name.trim() ||
+      typeof description !== 'string' ||
+      !description.trim() ||
+      typeof category !== 'string' ||
+      !category.trim() ||
+      !isValidNumber(price) ||
+      (stock !== undefined && !isValidNumber(stock))
+    ) {
+      return res.status(400).json({
+        error: 'Please provide valid name, description, price, category, and stock'
+      });
+    }
+
+    const product = await Product.create({
+      name: name.trim(),
+      description: description.trim(),
+      price: Number(price),
+      category: category.trim(),
       stock: stock !== undefined ? Number(stock) : 0,
-      imageUrl: imageUrl || 'https://placehold.co/600x400?text=Product+Image',
-      rating: 4.5,
-      createdAt: new Date(),
-    };
-    inMemoryProducts.unshift(newProduct);
-    return res.status(201).json(newProduct);
+      imageUrl: imageUrl || 'https://placehold.co/600x400?text=Product+Image'
+    });
+
+    return res.status(201).json(product);
+
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Update a product
-// @route   PUT /api/products/:id
-// @access  Private/Admin
+// @desc Update product
+// @route PUT /api/products/:id
+// @access Private/Admin
 const updateProduct = async (req, res, next) => {
   try {
+    if (!checkDatabase(res)) return;
+
     const { id } = req.params;
-    const { name, description, price, category, stock, imageUrl } = req.body;
 
-    if (Product.db && Product.db.readyState === 1) {
-      const product = await Product.findById(id);
-      if (!product) {
-        return res.status(404).json({ error: 'Product not found' });
+    if (!isValidId(id)) {
+      return res.status(400).json({
+        error: 'Invalid product ID'
+      });
+    }
+
+    const {
+      name,
+      description,
+      price,
+      category,
+      stock,
+      imageUrl
+    } = req.body;
+
+    if (
+      (name !== undefined && (typeof name !== 'string' || !name.trim())) ||
+      (description !== undefined && (typeof description !== 'string' || !description.trim())) ||
+      (category !== undefined && (typeof category !== 'string' || !category.trim())) ||
+      (price !== undefined && !isValidNumber(price)) ||
+      (stock !== undefined && !isValidNumber(stock))
+    ) {
+      return res.status(400).json({
+        error: 'Invalid product update data'
+      });
+    }
+
+    const updates = {};
+
+    if (name !== undefined) updates.name = name.trim();
+    if (description !== undefined) updates.description = description.trim();
+    if (price !== undefined) updates.price = Number(price);
+    if (category !== undefined) updates.category = category.trim();
+    if (stock !== undefined) updates.stock = Number(stock);
+    if (imageUrl !== undefined) updates.imageUrl = imageUrl;
+
+    const product = await Product.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      {
+        new: true,
+        runValidators: true
       }
+    );
 
-      product.name = name ?? product.name;
-      product.description = description ?? product.description;
-      product.price = price !== undefined ? Number(price) : product.price;
-      product.category = category ?? product.category;
-      product.stock = stock !== undefined ? Number(stock) : product.stock;
-      product.imageUrl = imageUrl ?? product.imageUrl;
-
-      const updated = await product.save();
-      return res.json(updated);
+    if (!product) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
     }
 
-    const index = inMemoryProducts.findIndex((p) => p._id === id);
-    if (index === -1) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
+    return res.json(product);
 
-    inMemoryProducts[index] = {
-      ...inMemoryProducts[index],
-      name: name ?? inMemoryProducts[index].name,
-      description: description ?? inMemoryProducts[index].description,
-      price: price !== undefined ? Number(price) : inMemoryProducts[index].price,
-      category: category ?? inMemoryProducts[index].category,
-      stock: stock !== undefined ? Number(stock) : inMemoryProducts[index].stock,
-      imageUrl: imageUrl ?? inMemoryProducts[index].imageUrl,
-    };
-
-    return res.json(inMemoryProducts[index]);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Delete a product
-// @route   DELETE /api/products/:id
-// @access  Private/Admin
+// @desc Delete product
+// @route DELETE /api/products/:id
+// @access Private/Admin
 const deleteProduct = async (req, res, next) => {
   try {
+    if (!checkDatabase(res)) return;
+
     const { id } = req.params;
 
-    if (Product.db && Product.db.readyState === 1) {
-      const product = await Product.findById(id);
-      if (!product) {
-        return res.status(404).json({ error: 'Product not found' });
-      }
-      await product.deleteOne();
-      return res.json({ message: 'Product deleted successfully' });
+    if (!isValidId(id)) {
+      return res.status(400).json({
+        error: 'Invalid product ID'
+      });
     }
 
-    const index = inMemoryProducts.findIndex((p) => p._id === id);
-    if (index === -1) {
-      return res.status(404).json({ error: 'Product not found' });
+    const product = await Product.findByIdAndDelete(id);
+
+    if (!product) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
     }
-    inMemoryProducts.splice(index, 1);
-    return res.json({ message: 'Product deleted successfully' });
+
+    return res.json({
+      message: 'Product deleted successfully'
+    });
+
   } catch (error) {
     next(error);
   }
@@ -231,5 +242,5 @@ module.exports = {
   getProductById,
   createProduct,
   updateProduct,
-  deleteProduct,
+  deleteProduct
 };

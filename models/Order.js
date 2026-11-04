@@ -1,14 +1,35 @@
+
 const mongoose = require('mongoose');
 
 const orderItemSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  qty: { type: Number, required: true, min: 1 },
-  price: { type: Number, required: true },
-  imageUrl: { type: String },
-  product: {
-    type: mongoose.Schema.Types.Mixed, // <-- Yeh number (5, 9) aur ObjectId dono accept karega!
-    required: false,
+  name: {
+    type: String,
+    required: true,
+    trim: true
   },
+
+  qty: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+
+  imageUrl: {
+    type: String,
+    default: ''
+  },
+
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: false
+  }
 });
 
 const orderSchema = new mongoose.Schema(
@@ -16,49 +37,102 @@ const orderSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: false, // Guest checkout support
+      required: false
     },
+
     customerInfo: {
-      name: { type: String, default: 'Guest Customer' },
-      email: { type: String, default: '' },
-      phone: { type: String, default: '' },
+      name: {
+        type: String,
+        default: 'Guest Customer',
+        trim: true
+      },
+
+      email: {
+        type: String,
+        default: '',
+        trim: true,
+        lowercase: true
+      },
+
+      phone: {
+        type: String,
+        default: '',
+        trim: true
+      }
     },
-    orderItems: [orderItemSchema],
+
+    orderItems: {
+      type: [orderItemSchema],
+      required: true,
+      validate: {
+        validator: function (items) {
+          return Array.isArray(items) && items.length > 0;
+        },
+        message: 'Order must contain at least one product'
+      }
+    },
+
     shippingAddress: {
-      address: { type: String, required: true },
-      city: { type: String, required: true },
-      postalCode: { type: String, required: true },
-      country: { type: String, required: true },
+      address: {
+        type: String,
+        required: true,
+        trim: true
+      },
+
+      city: {
+        type: String,
+        required: true,
+        trim: true
+      },
+
+      postalCode: {
+        type: String,
+        required: true,
+        trim: true
+      },
+
+      country: {
+        type: String,
+        required: true,
+        trim: true
+      }
     },
+
     paymentMethod: {
       type: String,
       required: true,
-      default: 'Cash on Delivery',
+      default: 'Cash on Delivery'
     },
+
     totalPrice: {
       type: Number,
       required: true,
-      default: 0.0,
+      min: 0,
+      default: 0
     },
+
     isPaid: {
       type: Boolean,
       required: true,
-      default: false,
+      default: false
     },
+
     paidAt: {
-      type: Date,
+      type: Date
     },
+
     isDelivered: {
       type: Boolean,
       required: true,
-      default: false,
+      default: false
     },
+
     deliveredAt: {
-      type: Date,
-    },
+      type: Date
+    }
   },
   {
-    timestamps: true,
+    timestamps: true
   }
 );
 
