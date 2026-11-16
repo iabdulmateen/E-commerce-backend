@@ -229,10 +229,41 @@ const getAllOrders = async (req, res, next) => {
     next(error);
   }
 };
+// @desc Delete an order
+// @route DELETE /api/orders/:id
+// @access Private/Admin
+const deleteOrder = async (req, res, next) => {
+  try {
+    if (!checkDatabase(res)) return;
 
+    const { id } = req.params;
+
+    if (!isValidId(id)) {
+      return res.status(400).json({
+        error: 'Invalid order ID'
+      });
+    }
+
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return res.status(404).json({
+        error: 'Order not found'
+      });
+    }
+
+    await order.deleteOne();
+
+    return res.json({ message: 'Order removed successfully' });
+
+  } catch (error) {
+    next(error);
+  }
+};
 module.exports = {
   createOrder,
   getMyOrders,
   getOrderById,
-  getAllOrders
+  getAllOrders,
+  deleteOrder
 };
